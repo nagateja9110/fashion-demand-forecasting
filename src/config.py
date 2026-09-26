@@ -25,3 +25,34 @@ LAG_DAYS = [1, 7, 14, 28]
 ROLLING_WINDOWS = [7, 14, 28]
 
 RANDOM_SEED = 42
+
+NUMERIC_FEATURES = [
+    "avg_unit_price",
+    "avg_realized_discount",
+    "planned_discount_pct",
+    "is_promo_day",
+    "day_of_week",
+    "day_of_month",
+    "day_of_year",
+    "week_of_year",
+    "month",
+    "quarter",
+    "year",
+    "is_weekend",
+    "is_month_start",
+    "is_month_end",
+    "lag_1",
+    "lag_7",
+    "lag_14",
+    "lag_28",
+    "rolling_mean_7",
+    "rolling_std_7",
+    "rolling_mean_14",
+    "rolling_std_14",
+    "rolling_mean_28",
+    "rolling_std_28",
+]
+CATEGORICAL_FEATURES = ["category", "sub_category"]
+
+FORECAST_CONTEXT_JSON = MODELS_DIR / "forecast_context.json"
+DASHBOARD_DATA_JSON = REPORTS_DIR / "dashboard_data.json"

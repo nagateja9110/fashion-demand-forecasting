@@ -12,3 +12,4 @@ data/processed/*
 models/*
 !models/.gitkeep
 !models/metrics.json
+!models/forecast_context.json

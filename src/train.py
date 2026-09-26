@@ -11,37 +11,13 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from . import config
 from .evaluate import compute_metrics, plot_feature_importance, plot_predictions
+from .forecast import export_forecast_context
 from .models import DemandMLP
 from .split import time_aware_split
 from .utils import set_seed
 
-NUMERIC_FEATURES = [
-    "avg_unit_price",
-    "avg_realized_discount",
-    "planned_discount_pct",
-    "is_promo_day",
-    "day_of_week",
-    "day_of_month",
-    "day_of_year",
-    "week_of_year",
-    "month",
-    "quarter",
-    "year",
-    "is_weekend",
-    "is_month_start",
-    "is_month_end",
-    "lag_1",
-    "lag_7",
-    "lag_14",
-    "lag_28",
-    "rolling_mean_7",
-    "rolling_std_7",
-    "rolling_mean_14",
-    "rolling_std_14",
-    "rolling_mean_28",
-    "rolling_std_28",
-]
-CATEGORICAL_FEATURES = ["category", "sub_category"]
+NUMERIC_FEATURES = config.NUMERIC_FEATURES
+CATEGORICAL_FEATURES = config.CATEGORICAL_FEATURES
 
 
 def train_xgboost(train, val, test):
@@ -197,11 +173,41 @@ def main() -> None:
         pred_cols={"XGBoost": "pred_xgboost", "PyTorch MLP": "pred_mlp"},
         save_path=config.REPORTS_DIR / "actual_vs_predicted.png",
     )
-    plot_feature_importance(
-        xgb_model.get_score(importance_type="gain"),
-        save_path=config.REPORTS_DIR / "feature_importance.png",
-    )
+    feature_importance = xgb_model.get_score(importance_type="gain")
+    plot_feature_importance(feature_importance, save_path=config.REPORTS_DIR / "feature_importance.png")
     print(f"Saved models to {config.MODELS_DIR}, plots to {config.REPORTS_DIR}")
+
+    # Artifacts for the live API/dashboard: recent per-group history + promo
+    # calendar (to bootstrap recursive forecasts) and precomputed chart data.
+    daily_panel = pd.read_parquet(config.DAILY_DEMAND_PARQUET)
+    forecast_context = export_forecast_context(
+        daily_panel,
+        category_categories=list(df["category"].cat.categories),
+        subcategory_categories=list(df["sub_category"].cat.categories),
+    )
+    with open(config.FORECAST_CONTEXT_JSON, "w") as f:
+        json.dump(forecast_context, f)
+
+    dashboard_data = {
+        "metrics": metrics,
+        "feature_importance": sorted(
+            [{"feature": k, "importance": v} for k, v in feature_importance.items()],
+            key=lambda r: r["importance"],
+            reverse=True,
+        ),
+        "actual_vs_predicted": [
+            {"date": d.strftime("%Y-%m-%d"), "actual": float(a), "xgboost": float(x), "mlp": float(m)}
+            for d, a, x, m in zip(
+                test.groupby("date")[config.TARGET_COL].sum().index,
+                test.groupby("date")[config.TARGET_COL].sum().values,
+                test.groupby("date")["pred_xgboost"].sum().values,
+                test.groupby("date")["pred_mlp"].sum().values,
+            )
+        ],
+    }
+    with open(config.DASHBOARD_DATA_JSON, "w") as f:
+        json.dump(dashboard_data, f)
+    print(f"Saved forecast context to {config.FORECAST_CONTEXT_JSON}, dashboard data to {config.DASHBOARD_DATA_JSON}")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,12 @@ A demand forecasting pipeline for a fashion retailer: predicts daily unit
 demand per product category from historical sales, pricing, discounts, and
 seasonality, to support short-term inventory planning.
 
+**Live demo:** https://fashion-demand-forecasting.azurewebsites.net
+(dashboard with actual-vs-predicted charts, feature importance, and an
+interactive "forecast the next N days" tool backed by the trained XGBoost
+model — deployed on Azure App Service, free tier, so the first request after
+idle may take a few seconds to wake up).
+
 ## Data
 
 [Global Fashion Retail Stores Dataset](https://www.kaggle.com/datasets/ricgomes/global-fashion-retail-stores-dataset)
@@ -87,6 +93,42 @@ models/         saved model weights + metrics.json (gitignored)
 reports/        prediction and feature-importance plots
 run_pipeline.py single command to run the whole pipeline
 ```
+
+## Live API + dashboard (`app/`, `static/`)
+
+A FastAPI service (`app/main.py`) serves the trained XGBoost model plus a
+static dashboard (`static/`) with the same result plots and an interactive
+recursive forecasting tool: pick a category, a horizon, and optionally
+override price/discount, and it walks forward day-by-day feeding each
+prediction back in as pseudo-history for the next day's lag/rolling features
+(`src/forecast.py`) — the same technique a production forecasting service
+uses when future actuals aren't known yet.
+
+Run it locally:
+
+```bash
+pip install -r app/requirements.txt
+python run_pipeline.py   # produces models/forecast_context.json + reports/dashboard_data.json
+uvicorn app.main:app --reload --port 8000
+```
+
+Deployed on **Azure App Service** (Linux, Python 3.11, free F1 tier):
+
+```bash
+az group create --name fashion-demand-forecasting-rg --location centralindia
+az appservice plan create --name fashion-demand-plan --resource-group fashion-demand-forecasting-rg --sku F1 --is-linux
+az webapp create --name fashion-demand-forecasting --resource-group fashion-demand-forecasting-rg --plan fashion-demand-plan --runtime "PYTHON:3.11"
+az webapp config appsettings set --name fashion-demand-forecasting --resource-group fashion-demand-forecasting-rg --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
+az webapp config set --name fashion-demand-forecasting --resource-group fashion-demand-forecasting-rg \
+  --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 600 -k uvicorn.workers.UvicornWorker app.main:app"
+az webapp deploy --name fashion-demand-forecasting --resource-group fashion-demand-forecasting-rg --src-path deploy.zip --type zip
+```
+
+The deployed package only needs `app/`, `static/`, a few `src/` modules
+(`config.py`, `features.py`, `forecast.py`), and the small trained
+artifacts (`models/xgboost_model.json`, `models/forecast_context.json`,
+`reports/dashboard_data.json`) — training-only dependencies (PyTorch,
+scikit-learn, matplotlib) are never installed on the server.
 
 ## Possible extensions
 

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fashion Demand Forecasting</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Fashion Demand Forecasting</h1>
+    <p class="subtitle">XGBoost + PyTorch demand forecasting over daily category-level fashion retail sales</p>
+  </header>
+
+  <main>
+    <section id="metrics" class="card-row"></section>
+
+    <section class="panel">
+      <h2>Test-Period Forecast: Actual vs. Predicted</h2>
+      <canvas id="actualVsPredictedChart" height="90"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2>What Drives Demand (XGBoost Feature Importance)</h2>
+      <canvas id="featureImportanceChart" height="110"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2>Try It: Forecast the Next N Days</h2>
+      <form id="forecastForm">
+        <label>
+          Category
+          <select id="categorySelect"></select>
+        </label>
+        <label>
+          Sub-category
+          <select id="subCategorySelect"></select>
+        </label>
+        <label>
+          Horizon (days)
+          <input type="number" id="horizonInput" value="14" min="1" max="60" />
+        </label>
+        <label>
+          Discount override (0-1, blank = use promo calendar)
+          <input type="number" id="discountInput" step="0.05" min="0" max="1" placeholder="auto" />
+        </label>
+        <button type="submit">Forecast</button>
+      </form>
+      <canvas id="forecastChart" height="90"></canvas>
+    </section>
+  </main>
+
+  <footer>
+    <a href="https://github.com/nagateja9110/fashion-demand-forecasting" target="_blank" rel="noopener">Source on GitHub</a>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
