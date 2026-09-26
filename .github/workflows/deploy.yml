@@ -1,0 +1,50 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install app dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Smoke test import
+        run: python -c "from app.main import app"
+
+      # Only the serving-time code + small trained artifacts are deployed.
+      # Training-only dependencies (PyTorch, scikit-learn, matplotlib) never
+      # get installed on the App Service instance -- keeps it well inside
+      # the free (F1) tier's storage/build limits.
+      - name: Package minimal deploy artifact
+        run: |
+          mkdir -p build/app build/static build/src build/models build/reports
+          cp app/main.py app/schemas.py app/__init__.py build/app/
+          cp static/index.html static/styles.css static/app.js build/static/
+          cp src/__init__.py src/config.py src/features.py src/forecast.py build/src/
+          cp models/xgboost_model.json models/forecast_context.json build/models/
+          cp reports/dashboard_data.json build/reports/
+          cat > build/requirements.txt << 'EOF'
+          fastapi>=0.115
+          uvicorn[standard]>=0.30
+          gunicorn>=22.0
+          pandas>=2.0
+          xgboost>=2.0
+          pydantic>=2.0
+          EOF
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: fashion-demand-forecasting
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: build
