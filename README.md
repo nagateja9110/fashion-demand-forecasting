@@ -130,6 +130,22 @@ artifacts (`models/xgboost_model.json`, `models/forecast_context.json`,
 `reports/dashboard_data.json`) — training-only dependencies (PyTorch,
 scikit-learn, matplotlib) are never installed on the server.
 
+### CI/CD
+
+`.github/workflows/deploy.yml` redeploys automatically on every push to
+`master` (or manual dispatch): checks out the repo, smoke-tests that the
+FastAPI app imports cleanly, packages the same minimal artifact set as
+above, and deploys it via `azure/webapps-deploy`. Auth uses a publish
+profile stored as the `AZURE_WEBAPP_PUBLISH_PROFILE` repo secret — Azure
+App Service disables basic-auth publishing credentials by default on new
+apps, so that had to be turned on once:
+
+```bash
+az resource update --resource-group fashion-demand-forecasting-rg \
+  --namespace Microsoft.Web --resource-type basicPublishingCredentialsPolicies \
+  --parent sites/fashion-demand-forecasting --name scm --set properties.allow=true
+```
+
 ## Possible extensions
 
 - Per-store or per-SKU forecasts (would need a hierarchical/global model to
