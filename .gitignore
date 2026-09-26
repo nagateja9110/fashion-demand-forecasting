@@ -13,3 +13,4 @@ models/*
 !models/.gitkeep
 !models/metrics.json
 !models/forecast_context.json
+!models/xgboost_model.json
